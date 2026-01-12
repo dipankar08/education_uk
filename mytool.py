@@ -38,7 +38,7 @@ def create_footer_pdf(text, page_width, page_height):
     packet.seek(0)
     return PdfReader(packet)
 
-def merge_pdfs(input_dir, output_file, filter=None, from_page=None, to_page=None, two_up=False):
+def merge_pdfs(input_dir, output_file, filter=None, from_page=None, to_page=None, two_up=False, rotate=1):
     writer = PdfWriter()
 
     pdf_files = sorted(
@@ -51,7 +51,7 @@ def merge_pdfs(input_dir, output_file, filter=None, from_page=None, to_page=None
         print("No matching PDF files found")
         return
 
-    buffer_page = None  # used when two_up is True
+    buffer_page = None  # for two-up mode
 
     for pdf in pdf_files:
         path = os.path.join(input_dir, pdf)
@@ -72,7 +72,11 @@ def merge_pdfs(input_dir, output_file, filter=None, from_page=None, to_page=None
         for i in range(start, end):
             page = reader.pages[i]
 
-            # add footer (if needed)
+            # apply rotation
+            if rotate:
+                page.rotate(90)
+
+            # add footer
             width = float(page.mediabox.width)
             height = float(page.mediabox.height)
             footer_pdf = create_footer_pdf(pdf, width, height)
