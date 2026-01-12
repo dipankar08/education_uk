@@ -12,6 +12,7 @@ from io import BytesIO
 from pypdf import PdfWriter, PdfReader
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
+from pypdf import PageObject
 
 def create_footer_pdf(text, page_width, page_height):
     """Create a PDF overlay with footer text and white background"""
@@ -37,7 +38,7 @@ def create_footer_pdf(text, page_width, page_height):
     packet.seek(0)
     return PdfReader(packet)
 
-def merge_pdfs(input_dir, output_file, filter=None, from_page=None, to_page=None):
+def merge_pdfs(input_dir, output_file, filter=None, from_page=None, to_page=None, two_up=False):
     writer = PdfWriter()
 
     pdf_files = sorted(
@@ -49,6 +50,8 @@ def merge_pdfs(input_dir, output_file, filter=None, from_page=None, to_page=None
     if not pdf_files:
         print("No matching PDF files found")
         return
+
+    buffer_page = None  # used when two_up is True
 
     for pdf in pdf_files:
         path = os.path.join(input_dir, pdf)
@@ -69,13 +72,38 @@ def merge_pdfs(input_dir, output_file, filter=None, from_page=None, to_page=None
         for i in range(start, end):
             page = reader.pages[i]
 
+            # add footer (if needed)
             width = float(page.mediabox.width)
             height = float(page.mediabox.height)
-
             footer_pdf = create_footer_pdf(pdf, width, height)
             page.merge_page(footer_pdf.pages[0])
 
-            writer.add_page(page)
+            if two_up:
+                if buffer_page is None:
+                    # store first page
+                    buffer_page = page
+                else:
+                    # merge buffer_page and current page on a new page
+                    new_page = PageObject.create_blank_page(
+                        width=width,
+                        height=height * 2  # double height for two pages
+                    )
+                    # place pages: first at bottom, second at top
+                    new_page.merge_translated_page(buffer_page, 0, 0)
+                    new_page.merge_translated_page(page, 0, height)
+                    writer.add_page(new_page)
+                    buffer_page = None
+            else:
+                writer.add_page(page)
+
+    # if an odd number of pages in two_up mode, add last buffered page
+    if two_up and buffer_page:
+        new_page = PageObject.create_blank_page(
+            width=width,
+            height=height * 2
+        )
+        new_page.merge_translated_page(buffer_page, 0, 0)
+        writer.add_page(new_page)
 
     with open(output_file, "wb") as f:
         writer.write(f)
@@ -95,7 +123,8 @@ def pdf_join_func(args):
         output_file="./output/merged.pdf",
         filter=args.filter,
         from_page=args.from_page,
-        to_page=args.to_page
+        to_page=args.to_page,
+        two_up = args.two_up
     )
 
 # Main function
