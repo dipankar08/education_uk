@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/Users/dip/dipankar/education_uk/venv/bin/python
 
 import argparse
 
@@ -201,4 +201,12 @@ def main():
     args.func(args)
 
 if __name__ == "__main__":
-    main()
+    # main()
+    merge_pdfs(
+        input_dir="./data/ks1/",
+        output_file="./output/merged.pdf",
+        filter='spelling-paper-1-spelling',
+        from_page=2,
+        to_page=3,
+        two_up = True
+    )
